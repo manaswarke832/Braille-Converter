@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braille Converter - Text to Braille Unicode</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <h1>🔤 Braille Converter</h1>
+    </header>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" data-panel="home">🏠 Home</button>
+        <button class="nav-tab" data-panel="converter">🔤 Converter</button>
+        <button class="nav-tab" data-panel="output">⠿ Output</button>
+    </div>
+
+    <div class="container">
+        <!-- Home Panel -->
+        <div class="panel active" id="home-panel">
+            <h2>🔤 Welcome to Braille Converter</h2>
+            <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=250&fit=crop" alt="Braille reading" class="hero-image">
+            
+            <p class="info-text">
+                Transform any text into Braille Unicode instantly. Our tool supports multiple input methods including typing, speech-to-text, and image OCR to make Braille conversion accessible to everyone.
+            </p>
+
+            <div class="braille-images">
+                <img src="https://images.unsplash.com/photo-1589998059171-988d887df646?w=150&h=120&fit=crop" alt="Braille dots" class="braille-image">
+                <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=150&h=120&fit=crop" alt="Braille book" class="braille-image">
+                <img src="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=150&h=120&fit=crop" alt="Accessibility" class="braille-image">
+                <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150&h=120&fit=crop" alt="Reading Braille" class="braille-image">
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <button class="btn btn-primary" onclick="showPanel('converter')">
+                    🚀 Start Converting
+                </button>
+            </div>
+        </div>
+
+        <!-- Converter Panel -->
+        <div class="panel" id="converter-panel">
+            <h2>📝 Input Text</h2>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="textInput">Type or paste your text:</label>
+                    <textarea id="textInput" placeholder="Enter text to convert to Braille..."></textarea>
+                </div>
+
+                <div class="input-options">
+                    <button class="btn btn-secondary" id="speechBtn">
+                        🎤 Speech to Text
+                    </button>
+                    <div class="file-upload">
+                        <input type="file" id="imageInput" accept="image/*">
+                        <div class="upload-area" id="uploadArea">
+                            📷 Upload Image (OCR)
+                        </div>
+                    </div>
+                </div>
+
+                <div id="status"></div>
+
+                <button class="btn btn-primary convert-btn" id="convertBtn">
+                    🔄 Convert to Braille
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="panel" id="output-panel">
+            <h2>⠿ Braille Output</h2>
+            <div class="output-section">
+                <div class="braille-output empty" id="brailleOutput">
+                    Braille output will appear here...
+                </div>
+
+                <div class="output-actions">
+                    <button class="btn btn-success" id="copyBtn" disabled>
+                        📋 Copy
+                    </button>
+                    <button class="btn btn-warning" id="speakBtn" disabled>
+                        🔊 Speak
+                    </button>
+                    <button class="btn btn-secondary" id="downloadBtn" disabled>
+                        💾 Download
+                    </button>
+                    <button class="btn btn-primary" id="printBtn" disabled>
+                        🖨️ Print
+                    </button>
+                </div>
+
+                <div id="unsupportedChars"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Braille Unicode mapping
+        const brailleMap = {
+            'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑', 'f': '⠋',
+            'g': '⠛', 'h': '⠓', 'i': '⠊', 'j': '⠚', 'k': '⠅', 'l': '⠇',
+            'm': '⠍', 'n': '⠝', 'o': '⠕', 'p': '⠏', 'q': '⠟', 'r': '⠗',
+            's': '⠎', 't': '⠞', 'u': '⠥', 'v': '⠧', 'w': '⠺', 'x': '⠭',
+            'y': '⠽', 'z': '⠵',
+            'A': '⠁', 'B': '⠃', 'C': '⠉', 'D': '⠙', 'E': '⠑', 'F': '⠋',
+            'G': '⠛', 'H': '⠓', 'I': '⠊', 'J': '⠚', 'K': '⠅', 'L': '⠇',
+            'M': '⠍', 'N': '⠝', 'O': '⠕', 'P': '⠏', 'Q': '⠟', 'R': '⠗',
+            'S': '⠎', 'T': '⠞', 'U': '⠥', 'V': '⠧', 'W': '⠺', 'X': '⠭',
+            'Y': '⠽', 'Z': '⠵',
+            '0': '⠚', '1': '⠁', '2': '⠃', '3': '⠉', '4': '⠙', '5': '⠑',
+            '6': '⠋', '7': '⠛', '8': '⠓', '9': '⠊',
+            ' ': ' ', '\n': '\n', '\t': '\t',
+            '.': '⠲', ',': '⠂', '!': '⠖', '?': '⠦', ';': '⠆', ':': '⠒',
+            '-': '⠤', "'": '⠄', '"': '⠄⠄', '(': '⠐⠣', ')': '⠐⠜',
+            '[': '⠐⠣', ']': '⠐⠜', '{': '⠐⠣', '}': '⠐⠜',
+            '+': '⠐⠖', '=': '⠐⠶', '*': '⠐⠔', '/': '⠐⠌', '\\': '⠐⠡',
+            '<': '⠐⠣', '>': '⠐⠜', '@': '⠐⠁', '#': '⠐⠼', '$': '⠐⠎',
+            '%': '⠐⠴', '&': '⠐⠯', '|': '⠐⠿', '~': '⠐⠈', '`': '⠐⠈',
+            '^': '⠐⠡', '_': '⠐⠤'
+        };
+
+        // DOM elements
+        const textInput = document.getElementById('textInput');
+        const speechBtn = document.getElementById('speechBtn');
+        const imageInput = document.getElementById('imageInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const convertBtn = document.getElementById('convertBtn');
+        const brailleOutput = document.getElementById('brailleOutput');
+        const copyBtn = document.getElementById('copyBtn');
+        const speakBtn = document.getElementById('speakBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const printBtn = document.getElementById('printBtn');
+        const status = document.getElementById('status');
+        const unsupportedChars = document.getElementById('unsupportedChars');
+
+        // Speech recognition
+        let recognition = null;
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+        }
+
+        // Speech synthesis
+        const synth = window.speechSynthesis;
+
+        // Convert text to Braille
+        function convertToBraille(text) {
+            let braille = '';
+            const unsupported = new Set();
+            
+            for (let char of text) {
+                if (brailleMap[char] !== undefined) {
+                    braille += brailleMap[char];
+                } else {
+                    braille += char;
+                    if (char.trim() !== '') {
+                        unsupported.add(char);
+                    }
+                }
+            }
+            
+            return { braille, unsupported: Array.from(unsupported) };
+        }
+
+        // Update output
+        function updateOutput(text) {
+            const result = convertToBraille(text);
+            
+            if (result.braille.trim()) {
+                brailleOutput.textContent = result.braille;
+                brailleOutput.classList.remove('empty');
+                
+                // Enable output buttons
+                copyBtn.disabled = false;
+                speakBtn.disabled = false;
+                downloadBtn.disabled = false;
+                printBtn.disabled = false;
+            } else {
+                brailleOutput.textContent = 'Braille output will appear here...';
+                brailleOutput.classList.add('empty');
+                
+                // Disable output buttons
+                copyBtn.disabled = true;
+                speakBtn.disabled = true;
+                downloadBtn.disabled = true;
+                printBtn.disabled = true;
+            }
+            
+            // Show unsupported characters
+            if (result.unsupported.length > 0) {
+                unsupportedChars.innerHTML = `
+                    <h4>⚠️ Unsupported Characters:</h4>
+                    <p>${result.unsupported.join(' ')}</p>
+                `;
+            } else {
+                unsupportedChars.innerHTML = '';
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                status.innerHTML = '';
+            }, 5000);
+        }
+
+
+
+        // Speech to text
+        if (recognition) {
+            speechBtn.addEventListener('click', () => {
+                if (recognition) {
+                    speechBtn.innerHTML = '<span class="loading"></span> Listening...';
+                    speechBtn.disabled = true;
+                    
+                    recognition.start();
+                } else {
+                    showStatus('❌ Speech recognition not supported in this browser.', 'error');
+                }
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                textInput.value = transcript;
+                speechBtn.innerHTML = '🎤 Speech to Text';
+                speechBtn.disabled = false;
+                showStatus('✅ Speech captured successfully!', 'success');
+            };
+
+            recognition.onerror = (event) => {
+                speechBtn.innerHTML = '🎤 Speech to Text';
+                speechBtn.disabled = false;
+                showStatus('❌ Speech recognition error: ' + event.error, 'error');
+            };
+
+            recognition.onend = () => {
+                speechBtn.innerHTML = '🎤 Speech to Text';
+                speechBtn.disabled = false;
+            };
+        } else {
+            speechBtn.disabled = true;
+            speechBtn.innerHTML = '🎤 Speech to Text (Not Supported)';
+        }
+
+        // Image upload and OCR
+        imageInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                try {
+                    showStatus('🔄 Processing image with OCR...', 'info');
+                    
+                    const result = await Tesseract.recognize(file, 'eng');
+                    const extractedText = result.data.text.trim();
+                    
+                    if (extractedText) {
+                        textInput.value = extractedText;
+                        showStatus('✅ Text extracted from image successfully!', 'success');
+                    } else {
+                        showStatus('⚠️ No text found in the image.', 'error');
+                    }
+                } catch (error) {
+                    showStatus('❌ Error processing image: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // Drag and drop for images
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                imageInput.files = files;
+                imageInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Output actions
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(brailleOutput.textContent);
+                showStatus('✅ Braille copied to clipboard!', 'success');
+            } catch (error) {
+                showStatus('❌ Failed to copy to clipboard.', 'error');
+            }
+        });
+
+        speakBtn.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            if (text && synth) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.8;
+                utterance.pitch = 1;
+                synth.speak(utterance);
+                showStatus('🔊 Speaking text...', 'info');
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const braille = brailleOutput.textContent;
+            const blob = new Blob([braille], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'braille_output.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showStatus('✅ Braille downloaded as text file!', 'success');
+        });
+
+        printBtn.addEventListener('click', () => {
+            window.print();
+        });
+
+        // Real-time conversion on input
+        textInput.addEventListener('input', () => {
+            const text = textInput.value.trim();
+            if (text) {
+                updateOutput(text);
+            } else {
+                brailleOutput.textContent = 'Braille output will appear here...';
+                brailleOutput.classList.add('empty');
+                copyBtn.disabled = true;
+                speakBtn.disabled = true;
+                downloadBtn.disabled = true;
+                printBtn.disabled = true;
+                unsupportedChars.innerHTML = '';
+            }
+        });
+
+        // Navigation functionality
+        function showPanel(panelName) {
+            // Hide all panels
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected panel
+            const targetPanel = document.getElementById(panelName + '-panel');
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+            
+            // Add active class to clicked tab
+            const activeTab = document.querySelector(`[data-panel="${panelName}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+        }
+
+        // Add event listeners to navigation tabs
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const panelName = tab.getAttribute('data-panel');
+                showPanel(panelName);
+            });
+        });
+
+        // Auto-switch to output panel when conversion is successful
+        function switchToOutput() {
+            showPanel('output');
+        }
+
+        // Update convert button to switch to output panel
+        convertBtn.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            if (text) {
+                updateOutput(text);
+                showStatus('✅ Text converted to Braille successfully!', 'success');
+                setTimeout(switchToOutput, 1000); // Switch to output panel after 1 second
+            } else {
+                showStatus('⚠️ Please enter some text to convert.', 'error');
+            }
+        });
+
+        // Initialize
+        showStatus('🚀 Braille Converter ready! Enter text, use speech, or upload an image.', 'info');
+    </script>
+</body>
+</html>
